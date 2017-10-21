@@ -17,8 +17,8 @@ explore_faction = 2
 #board.owned_boxes(state)  returns a dict with (Row,Column) keys; values indicate for each box whether player 1, 2, or 0 (neither) owns that box
 #board.display(state)  returns a string representation of the board state.
 #board.display_action(action)  returns a string representation of the game action.
-total_uct = 0
-uct_count = 0
+
+#Never used
 def find_root_move(best_move, node: MCTSNode):
     parent_move = best_move
     while node.parent:
@@ -26,6 +26,7 @@ def find_root_move(best_move, node: MCTSNode):
         node = node.parent
     return parent_move
 
+#gets you the state of the current node using node parents and the initial state
 def ravel_states(board, root_state, current_node: MCTSNode):
     moves = []
     parent_count = 0
@@ -34,42 +35,19 @@ def ravel_states(board, root_state, current_node: MCTSNode):
         moves.append(current_node.parent_action)
         current_node = current_node.parent
         parent_count += 1
-        if DEBUG:
+        if DEBUG and len(current_node.child_nodes) > 1:
             try:
-                #print("At {} level there are {} nodes".format(parent_count, len(current_node.child_nodes)))
+                print("At {} level there are {} nodes".format(parent_count, len(current_node.child_nodes)))
                 pass
             except:
                 pass
-    if DEBUG: print("We were {} deep!".format(parent_count))
+    #if DEBUG: print("We were {} deep!".format(parent_count))
     current_state = root_state
     while moves:
         action = moves.pop()
         current_state = board.next_state(current_state, action)
     return current_state
 
-"""
-    while children:
-
-        #non_leaf_chance = random() # returns [0,1]
-
-        #child key is a move
-        for move_to_child in children:
-            child = active_node.child_nodes[move_to_child]
-            child.visits += 1
-
-            UCT_value = UCT(child, active_node)
-            UCT_nodes[child] = UCT_value
-
-        #The move with the max value
-
-        #the node with the move with the max value
-
-        #make sure you visited all the unexpended nodes before moving to the next level
-
-    next_key = max(UCT_nodes, key=UCT_nodes.get)
-    return UCT_nodes[next_key]
-    # Hint: return leaf_node
-"""
 
 #selection; navigates the tree node
 def traverse_nodes(node: MCTSNode, state, identity):
@@ -83,59 +61,76 @@ def traverse_nodes(node: MCTSNode, state, identity):
     Returns:        A node from which the next stage of the search can proceed.
 
     """
-    global total_uct
-    global uct_count
     #Implement UCT
     #Returns a random leaf node.
 
-    visited_count = 0
-    all_visited_this_level = False
-
     # currently always goes for a leaf node.
 
-    def UCT(child, active_node):
-        if DEBUG: print("Printing wins: {}".format(child.wins))
-        if DEBUG: print("Printing visists: {}".format(child.visits))
+    #the uct is using a different formula than given in class.
+    #instead of using "current" and its "child" we are using "current" and its
+    # "parent"
+    # Technically there is no difference but it allows us to always have the current
+    # visited count be non 0 (other wise comparing it to non visited children
+    # resulted in division by 0
+    def UCT(parent, current):
 
+        #Similarly if the UCT is running from root, the ln(parent_node_visit)
+        # returns -inf. We just return that value, disregarding all other values
+        if parent:
+            parent_node_visits = parent.visits
+        else:
+            return -inf
+        #if DEBUG: print("Printing wins: {}".format(current.wins))
+        #if DEBUG: print("Printing visists: {}".format(current.visits)
 
-        first_term = child.wins / float(child.visits)
-        part =  sqrt(log(active_node.visits) / float(child.visits))
+        first_term = current.wins / float(current.visits)
+        part =  sqrt(log(parent_node_visits) / float(current.visits))
         second_term = explore_faction * part
 
-        if DEBUG: print("The first: {}, second {}".format(first_term, second_term))
+        #if DEBUG: print("The first: {}, second {}".format(first_term, second_term))
         return first_term + second_term
 
     #move, value
-
-
     active_node = node;
-    children = active_node.child_nodes
     active_node.visits += 1
-    UCT_values = {}
+
+    children = active_node.child_nodes
+    active_uct_val = UCT(active_node.parent, active_node)
+
+    UCT_to_nodes = {}
+    UCT_to_nodes[active_node] = active_uct_val
+
+    last_node = None
     while children:
+        # If a non leaf node is selected, by definition it has children
+        # which means we need to externally break the loop.
+        # We check this by seeing if the same node is selected twice. If a non
+        # leaf node is selected, it will go into competition with the same set
+        # once again, and will win, once again. Thus the next if statement
+        # breaking out of the loop.
+        #  Otherwise the leaf node is selected and it has no children.
+        if last_node == active_node:
+            break
+        last_node = active_node
 
-        #non_leaf_chance = random() # returns [0,1]
-
-        #child key is a move
+        #child move_to_child is a move
         for move_to_child in children:
             child = active_node.child_nodes[move_to_child]
             child.visits += 1
 
-            UCT_value = UCT(child, active_node)
-            UCT_values[move_to_child] = UCT_value
+            UCT_value = UCT(active_node, child)
+            UCT_to_nodes[child] = UCT_value
 
-        #The move with the max value
-        next_key = max(UCT_values, key=UCT_values.get)
-        #the node with the move with the max value
-
-        active_node = children[next_key]
+        #The node with the max value
+        #So here if it is not a leaf node, it is going to go into competition
+        #with it's same set of children which will break out of the loop
+        active_node = max(UCT_to_nodes, key=UCT_to_nodes.get)
         children = active_node.child_nodes
-        #make sure you visited all the unexpended nodes before moving to the next level
 
-        total_uct += UCT_value
-        uct_count += 1
-
+        if DEBUG: print(active_node)
     return active_node
+
+    # Bad hint.
     # Hint: return leaf_node
 
 #adding a new MCTSNode to the tree
@@ -154,12 +149,13 @@ def expand_leaf(parent_node: MCTSNode, state, board):
     parent_node.untried_actions = board.legal_actions(current_state)
     if len(parent_node.untried_actions) == 0:
         print("Cant expand leaf there are no possıble plays proceed.")
-        parent_node.parent.visits += 1
+        parent_node.parent.wins = -inf
+        parent_node.wins = -inf
         return None
 
 
     #select a random action that can be executed in that node
-    #!!! Make this random.
+    #!!! Make this random. It is kinda random?
     p_action = parent_node.untried_actions.pop()
 
     #!!! action list might not be correct.
@@ -170,7 +166,6 @@ def expand_leaf(parent_node: MCTSNode, state, board):
     return new_node
     # Hint: return new_node
 
-#simulating the remainder of the game
 def rollout(node:MCTSNode, state, board):
     """ Given the state of the game, the rollout plays out the remainder randomly.
 
@@ -183,7 +178,7 @@ def rollout(node:MCTSNode, state, board):
     ROLLOUTS = 10
     MAX_DEPTH = 5
     moves = board.legal_actions(state)
-
+    #Safe guard into not having enough plays.
     if len(moves) == 0:
         standing = board.points_values(state)
         print("Cant rollout as there are no possıble plays proceed.")
@@ -239,6 +234,7 @@ def rollout(node:MCTSNode, state, board):
     return best_move, best_expectation
 
 
+
 #update all nodes along the path visited
 def backpropagate(added_node: MCTSNode, expectation):
     """ Navigates the tree from a leaf node to the root, updating the win and visit count of each node along the path.
@@ -283,6 +279,7 @@ def think(board, state):
 
         # Failsafe in case added node has no possible plays
         while not added_node:
+            print("Failsafe activated.")
             leaf_node = traverse_nodes(node, sampled_game, identity_of_bot)
             added_node = expand_leaf(leaf_node, sampled_game, board)
 
@@ -295,11 +292,6 @@ def think(board, state):
             best_expectation = active_expectation
 
     print("#####################Printing best move:" + str(best_move) + "with the expectation: " + str(best_expectation))
-    #print(total_uct/uct_count)
     #best_move = find_root_move(best_move, best_move_node)
     return best_move
 
-
-    # Return an action, typically the most frequently used action (from the root) or the action with the best
-    # estimated win rate.
-    return None

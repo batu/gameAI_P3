@@ -20,6 +20,8 @@ class MCTSNode:
         self.wins = 0                           # Total wins of all paths through this node.
         self.visits = 0                         # Number of times this node has been visited.
 
+        self.visited_this_selection = False
+
     def __repr__(self):
         """
         This method provides a string representing the node. Any time str(node) is used, this method is called.
