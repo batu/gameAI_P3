@@ -7,6 +7,7 @@ DEBUG = False
 
 num_nodes = 10
 explore_faction = 2
+THIS_IDENTITIY = 0
 
 
 #board.legal_actions(state) returns the moves available in state.
@@ -182,11 +183,11 @@ def rollout(node:MCTSNode, state, board):
     if len(moves) == 0:
         standing = board.points_values(state)
         print("Cant rollout as there are no possıble plays proceed.")
-        if standing[1] == 0:
+        if standing[THIS_IDENTITIY] == 0:
             return node.parent_action, 0
-        elif standing[1] == 1:
+        elif standing[THIS_IDENTITIY] == 1:
             return node.parent_action, inf
-        elif standing[1] == -1:
+        elif standing[THIS_IDENTITIY] == -1:
             return node.parent_action, -inf
 
     best_move = moves[0]
@@ -203,7 +204,7 @@ def rollout(node:MCTSNode, state, board):
         else:
             red_score = len([v for v in owned_boxes.values() if v == 1])
             blue_score = len([v for v in owned_boxes.values() if v == 2])
-        return red_score - blue_score if me == 1 else blue_score - red_score
+        return red_score - blue_score if me == THIS_IDENTITIY else blue_score - red_score
 
     for move in moves:
         total_score = 0.0
@@ -254,6 +255,7 @@ def backpropagate(added_node: MCTSNode, expectation):
 
 
 def think(board, state):
+    global THIS_IDENTITIY
     """ Performs MCTS by sampling games and calling the appropriate functions to construct the game tree.
 
     Args:
@@ -264,6 +266,10 @@ def think(board, state):
 
     """
     identity_of_bot = board.current_player(state)
+    if THIS_IDENTITIY == 0:
+        THIS_IDENTITIY = identity_of_bot
+    print("{} is the vanilla bot".format(THIS_IDENTITIY))
+
     root_node = MCTSNode(parent=None, parent_action=None, action_list=board.legal_actions(state))
 
     best_move = (0,0,0,0);
