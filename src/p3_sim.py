@@ -5,12 +5,14 @@ import mcts_vanilla
 import mcts_modified
 import random_bot
 import rollout_bot
+import mcts_parralel
 
 players = dict(
     random_bot=random_bot.think,
     rollout_bot=rollout_bot.think,
     mcts_vanilla=mcts_vanilla.think,
-    mcts_modified=mcts_modified.think
+    mcts_modified=mcts_modified.think,
+    mcts_parralel=mcts_parralel.think
 )
 
 board = p3_t3.Board()
@@ -32,7 +34,7 @@ if p2 not in players:
 player1 = players[p1]
 player2 = players[p2]
 
-rounds = 10
+rounds = 20
 wins = {'draw':0, 1:0, 2:0}
 
 
@@ -58,8 +60,8 @@ for i in range(rounds):
     elif final_score[2] == 1:
         winner = 2
     print("The %s bot wins this round! (%s)" % (winner, str(final_score)))
-    print(wins)
     wins[winner] = wins.get(winner, 0) + 1
+    print(wins)
 
 print("")
 print("Final win counts:", dict(wins))

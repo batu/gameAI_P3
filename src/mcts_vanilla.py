@@ -1,13 +1,21 @@
 from mcts_node import MCTSNode
 from random import choice, random
 from math import sqrt, log, inf
-
+import time
 
 DEBUG = False
 
-num_nodes = 10
-explore_faction = 2
+TIME_CONSTRAINT = False
+#in seconds
+max_time = 1
+
+num_nodes = 5
+explore_faction = 5
+ROLLOUTS = 5
+MAX_DEPTH = 5
+
 THIS_IDENTITIY = 0
+OTHER_IDENTITIY = 0
 
 
 #board.legal_actions(state) returns the moves available in state.
@@ -65,15 +73,14 @@ def traverse_nodes(node: MCTSNode, state, identity):
     #Implement UCT
     #Returns a random leaf node.
 
-    # currently always goes for a leaf node.
-
     #the uct is using a different formula than given in class.
     #instead of using "current" and its "child" we are using "current" and its
     # "parent"
     # Technically there is no difference but it allows us to always have the current
     # visited count be non 0 (other wise comparing it to non visited children
     # resulted in division by 0
-    def UCT(parent, current):
+    def UCT(parent, current, identitity):
+        global THIS_IDENTITIY
 
         #Similarly if the UCT is running from root, the ln(parent_node_visit)
         # returns -inf. We just return that value, disregarding all other values
@@ -84,7 +91,11 @@ def traverse_nodes(node: MCTSNode, state, identity):
         #if DEBUG: print("Printing wins: {}".format(current.wins))
         #if DEBUG: print("Printing visists: {}".format(current.visits)
 
-        first_term = current.wins / float(current.visits)
+        first_term = 0.0
+        if identitity == THIS_IDENTITIY:
+            first_term = current.wins / float(current.visits)
+        elif identitity != THIS_IDENTITIY:
+            first_term = 1 - (current.wins / float(current.visits))
         part =  sqrt(log(parent_node_visits) / float(current.visits))
         second_term = explore_faction * part
 
@@ -96,7 +107,7 @@ def traverse_nodes(node: MCTSNode, state, identity):
     active_node.visits += 1
 
     children = active_node.child_nodes
-    active_uct_val = UCT(active_node.parent, active_node)
+    active_uct_val = UCT(active_node.parent, active_node, identity)
 
     UCT_to_nodes = {}
     UCT_to_nodes[active_node] = active_uct_val
@@ -119,7 +130,10 @@ def traverse_nodes(node: MCTSNode, state, identity):
             child = active_node.child_nodes[move_to_child]
             child.visits += 1
 
-            UCT_value = UCT(active_node, child)
+            UCT_value = UCT(active_node, child, identity)
+            if len(child.untried_actions) == 0:
+                UCT_value = -inf
+
             UCT_to_nodes[child] = UCT_value
 
         #The node with the max value
@@ -129,10 +143,8 @@ def traverse_nodes(node: MCTSNode, state, identity):
         children = active_node.child_nodes
 
         if DEBUG: print(active_node)
-    return active_node
 
-    # Bad hint.
-    # Hint: return leaf_node
+    return active_node
 
 #adding a new MCTSNode to the tree
 def expand_leaf(parent_node: MCTSNode, state, board):
@@ -148,8 +160,9 @@ def expand_leaf(parent_node: MCTSNode, state, board):
     # The parent node can execute all the actions in the current state
     current_state = ravel_states(board, state, parent_node)
     parent_node.untried_actions = board.legal_actions(current_state)
+
     if len(parent_node.untried_actions) == 0:
-        print("Cant expand leaf there are no possıble plays proceed.")
+        if DEBUG: print("Cant expand leaf there are no possible plays proceed.")
         parent_node.parent.wins = -inf
         parent_node.wins = -inf
         return None
@@ -176,13 +189,11 @@ def rollout(node:MCTSNode, state, board):
     """
     state = ravel_states(board, state, node)
 
-    ROLLOUTS = 10
-    MAX_DEPTH = 5
     moves = board.legal_actions(state)
     #Safe guard into not having enough plays.
     if len(moves) == 0:
         standing = board.points_values(state)
-        print("Cant rollout as there are no possıble plays proceed.")
+        if DEBUG: print("Cant rollout as there are no possible plays proceed.")
         if standing[THIS_IDENTITIY] == 0:
             return node.parent_action, 0
         elif standing[THIS_IDENTITIY] == 1:
@@ -199,11 +210,11 @@ def rollout(node:MCTSNode, state, board):
     def outcome(owned_boxes, game_points):
         if game_points is not None:
             # Try to normalize it up?  Not so sure about this code anyhow.
-            red_score = game_points[1]*9
-            blue_score = game_points[2]*9
+            red_score = game_points[THIS_IDENTITIY]*9
+            blue_score = game_points[OTHER_IDENTITIY]*9
         else:
-            red_score = len([v for v in owned_boxes.values() if v == 1])
-            blue_score = len([v for v in owned_boxes.values() if v == 2])
+            red_score = len([v for v in owned_boxes.values() if v == THIS_IDENTITIY])
+            blue_score = len([v for v in owned_boxes.values() if v == OTHER_IDENTITIY])
         return red_score - blue_score if me == THIS_IDENTITIY else blue_score - red_score
 
     for move in moves:
@@ -256,6 +267,7 @@ def backpropagate(added_node: MCTSNode, expectation):
 
 def think(board, state):
     global THIS_IDENTITIY
+    global OTHER_IDENTITIY
     """ Performs MCTS by sampling games and calling the appropriate functions to construct the game tree.
 
     Args:
@@ -268,38 +280,63 @@ def think(board, state):
     identity_of_bot = board.current_player(state)
     if THIS_IDENTITIY == 0:
         THIS_IDENTITIY = identity_of_bot
-    print("{} is the vanilla bot".format(THIS_IDENTITIY))
+
+    if THIS_IDENTITIY == 1: OTHER_IDENTITIY = 2
+    elif THIS_IDENTITIY == 2: OTHER_IDENTITIY = 1
 
     root_node = MCTSNode(parent=None, parent_action=None, action_list=board.legal_actions(state))
 
     best_move = (0,0,0,0);
     best_expectation = -inf;
-    best_move_node = None
-    for step in range(num_nodes):
-        # Copy the game for sampling a playthrough
-        sampled_game = state
-        # Start at root
-        node = root_node
 
-        # Do MCTS - This is all you!
-        leaf_node = traverse_nodes(node, sampled_game, identity_of_bot)
-        added_node = expand_leaf(leaf_node, sampled_game, board)
+    if not TIME_CONSTRAINT:
+        for step in range(num_nodes):
+            # Copy the game for sampling a playthrough
+            sampled_game = state
+            # Start at root
+            node = root_node
 
-        # Failsafe in case added node has no possible plays
-        while not added_node:
-            print("Failsafe activated.")
+            # Do MCTS - This is all you!
             leaf_node = traverse_nodes(node, sampled_game, identity_of_bot)
             added_node = expand_leaf(leaf_node, sampled_game, board)
 
-        active_move, active_expectation = rollout(added_node, sampled_game, board)
-        backpropagate(added_node, active_expectation)
+            # Failsafe in case added node has no possible plays
+            while not added_node:
+                leaf_node = traverse_nodes(node, sampled_game, identity_of_bot)
+                added_node = expand_leaf(leaf_node, sampled_game, board)
 
-        if active_expectation > best_expectation:
-            best_move_node = added_node
-            best_move = active_move
-            best_expectation = active_expectation
+            active_move, active_expectation = rollout(added_node, sampled_game, board)
+            backpropagate(added_node, active_expectation)
 
-    print("#####################Printing best move:" + str(best_move) + "with the expectation: " + str(best_expectation))
+            if active_expectation > best_expectation:
+                best_move = active_move
+                best_expectation = active_expectation
+    else:
+        start = time.time()
+        while time.time() - start < max_time:
+            # Copy the game for sampling a playthrough
+            sampled_game = state
+            # Start at root
+            node = root_node
+
+            # Do MCTS - This is all you!
+            leaf_node = traverse_nodes(node, sampled_game, identity_of_bot)
+            added_node = expand_leaf(leaf_node, sampled_game, board)
+
+            # Failsafe in case added node has no possible plays
+            while not added_node:
+                print("Failsafe.")
+                leaf_node = traverse_nodes(node, sampled_game, identity_of_bot)
+                added_node = expand_leaf(leaf_node, sampled_game, board)
+
+            active_move, active_expectation = rollout(added_node, sampled_game, board)
+            backpropagate(added_node, active_expectation)
+
+            if active_expectation > best_expectation:
+                best_move = active_move
+                best_expectation = active_expectation
+
+    #print("Vanilla:" + str(THIS_IDENTITIY)+ " |Printing best move:" + str(best_move) + "with the expectation: " + str(best_expectation))
     #best_move = find_root_move(best_move, best_move_node)
     return best_move
 

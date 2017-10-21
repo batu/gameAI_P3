@@ -1,13 +1,26 @@
 from mcts_node import MCTSNode
 from random import choice, random
 from math import sqrt, log, inf
-
+from multiprocessing import Pool
+from contextlib import closing
+import time, copy
 
 DEBUG = False
+NUM_THREADS = 16
+
+
+TIME_CONSTRAINT = True
+#in seconds
+max_time = 0.1
 
 num_nodes = 10
 explore_faction = 2
+
+ROLLOUTS = 5
+MAX_DEPTH = 5
+
 THIS_IDENTITIY = 0
+OTHER_IDENTITIY = 0
 
 
 #board.legal_actions(state) returns the moves available in state.
@@ -135,7 +148,6 @@ def traverse_nodes(node: MCTSNode, state, identity):
         if DEBUG: print(active_node)
     return active_node
 
-    # Bad hint.
     # Hint: return leaf_node
 
 #adding a new MCTSNode to the tree
@@ -158,7 +170,6 @@ def expand_leaf(parent_node: MCTSNode, state, board):
         parent_node.wins = -inf
         return None
 
-
     #select a random action that can be executed in that node
     #!!! Make this random. It is kinda random?
     p_action = parent_node.untried_actions.pop()
@@ -171,6 +182,121 @@ def expand_leaf(parent_node: MCTSNode, state, board):
     return new_node
     # Hint: return new_node
 
+def rollout_handler(worker_stack, move_count):
+        with closing( Pool(move_count) ) as pools:
+            return (pools.starmap(rollout_worker, worker_stack))
+
+def rollout_worker(ROLLOUTS, MAX_DEPTH, board, state, me, move):
+    total_score = 0.0
+    # Sample a set number of games where the target move is immediately applied.
+    for r in range(ROLLOUTS):
+        rollout_state = board.next_state(state, move)
+
+        # Only play to the specified depth.
+        for i in range(MAX_DEPTH):
+            if board.is_ended(rollout_state):
+                break
+
+            rollout_move = heuristic(rollout_state, board, me)
+
+            if not rollout_move:
+                continue
+
+            rollout_state = board.next_state(rollout_state, rollout_move)
+        outcome_result =outcome(board.owned_boxes(rollout_state),
+                               board.points_values(rollout_state), me)
+        total_score += outcome_result
+
+    expectation = float(total_score) / float(ROLLOUTS)
+
+    return (move, expectation)
+
+
+# Returns choice a choice
+def heuristic(state, board, identitity):
+        legal_actions = board.legal_actions(state)
+
+        # Seperate legal action from the list that it is going to loop
+        # on as it sometimes creates weird behavior to modify the list you are
+        # going through, even though it SHOULD be fine in this case.
+
+        legal_actions_loop = copy.copy(legal_actions)
+        #iterate through all possible actions in the state
+        for action in legal_actions_loop:
+            next_state = board.next_state(state, action)
+
+
+            ### HEURISTIC ONE - CHECK THE INCREASE IN OWNED BOXES ###
+            current_boxes = board.owned_boxes(state)
+            current_box_owner_count = 0
+            current_box_enemy_count = 0
+            for value in current_boxes.values():
+                if value == THIS_IDENTITIY:
+                    current_box_owner_count += 1
+                if value == OTHER_IDENTITIY:
+                    current_box_enemy_count += 1
+
+            next_boxes = board.owned_boxes(next_state)
+            next_box_owner_count = 0
+            next_box_enemy_count = 0
+            for value in next_boxes.values():
+                if value == THIS_IDENTITIY:
+                    next_box_owner_count += 1
+                if value == OTHER_IDENTITIY:
+                    next_box_enemy_count += 1
+
+            # if an action results in an main box increase, do that
+            if next_box_owner_count > current_box_owner_count:
+                return action
+
+            # if an action results in an increase in enemy box count
+            # remove that from the possible list of action
+            if next_box_enemy_count > current_box_enemy_count:
+                if action in legal_actions: legal_actions.remove(action)
+
+            ### -------------------------------------------------------- ###
+
+            ### HEURISTIC 2 - CHECK IF THE MOVES GIVES YOU THE WIN/LOSS ###
+            final_dict = board.points_values(next_state)
+            #Sometimes final_dict returns None. This behavior is outside the documentation
+            #and I couldnt figure out when it is the case, so the next line is a
+            #safe guard against that
+            if final_dict:
+                #For the player
+                if identitity == THIS_IDENTITIY:
+                    # if this move brings us to victory return it
+                    if final_dict[THIS_IDENTITIY] == 1:
+                        return action;
+
+                    # if this move brings us defeat remove it from the possible actions
+                    if final_dict[THIS_IDENTITIY] == -1:
+                        if action in legal_actions: legal_actions.remove(action)
+                #For the opponent
+                else:
+                    # If this move brings victory to the opponent remove it from possible actions
+                    if final_dict[OTHER_IDENTITIY] == 1:
+                        if action in legal_actions: legal_actions.remove(action)
+                    # If this move brings defeat to the opponent return it
+                    if final_dict[OTHER_IDENTITIY] == -1:
+                        return action;
+            ### ----------------------------------------------------------------- ###
+        try:
+            #if a terminal state isnt found just return a random legal action.
+            return choice(legal_actions)
+        except IndexError:
+            print("Returned none from heuristic.")
+            return None
+
+def outcome(owned_boxes, game_points, me):
+    if game_points is not None:
+        # Try to normalize it up?  Not so sure about this code anyhow.
+        red_score = game_points[THIS_IDENTITIY]*9
+        blue_score = game_points[OTHER_IDENTITIY]*9
+    else:
+        red_score = len([v for v in owned_boxes.values() if v == THIS_IDENTITIY])
+        blue_score = len([v for v in owned_boxes.values() if v == OTHER_IDENTITIY])
+    return red_score - blue_score if me == THIS_IDENTITIY else blue_score - red_score
+
 def rollout(node:MCTSNode, state, board):
     """ Given the state of the game, the rollout plays out the remainder randomly.
 
@@ -178,41 +304,11 @@ def rollout(node:MCTSNode, state, board):
         state:  The state of the game.
 
     """
-
-    # Returns choice and corresponding heuristic weight
-    def heuristic(state, board, identitity):
-        weight = 0
-        legal_actions = board.legal_actions(state)
-        #iterate through all possible actions in the state
-        for action in legal_actions:
-            next_state = board.next_state(state, action)
-            final_dict = board.points_values(next_state)
-            #Sometimes this returns None. This behavior is outside the documentation
-            #and I couldnt figure out when it is the case, so the next line is a
-            #safe guard against that
-            if final_dict:
-                if DEBUG: print("Actual heuristic")
-                if identitity == THIS_IDENTITIY:
-                    if final_dict[THIS_IDENTITIY] == 1:
-                        return action;
-                    if final_dict[THIS_IDENTITIY] == -1:
-                        if len(final_dict):
-                            legal_actions.remove(action)
-                else:
-                    if final_dict[THIS_IDENTITIY] == 1:
-                        if len(final_dict):
-                            legal_actions.remove(action)
-                        return action;
-        try:
-            return choice(legal_actions)
-        except IndexError:
-            print("Index error")
-            return None
-
     state = ravel_states(board, state, node)
     ROLLOUTS = 10
     MAX_DEPTH = 5
     moves = board.legal_actions(state)
+
     #Safe guard into not having enough plays.
     if len(moves) == 0:
         standing = board.points_values(state)
@@ -229,46 +325,16 @@ def rollout(node:MCTSNode, state, board):
 
     me = board.current_player(state)
 
+    worker_individual = [ROLLOUTS, MAX_DEPTH, board, state, me]
+    worker_stack = [worker_individual + [move] for move in moves]
+
     # Define a helper function to calculate the difference between the bot's score and the opponent's.
-    def outcome(owned_boxes, game_points):
-        if game_points is not None:
-            # Try to normalize it up?  Not so sure about this code anyhow.
-            red_score = game_points[1]*9
-            blue_score = game_points[2]*9
-        else:
-            red_score = len([v for v in owned_boxes.values() if v == 1])
-            blue_score = len([v for v in owned_boxes.values() if v == 2])
-        return red_score - blue_score if me == THIS_IDENTITIY else blue_score - red_score
+    # Num threads
+    expectations = rollout_handler(worker_stack, NUM_THREADS)
 
-    for move in moves:
-        total_score = 0.0
+    expectations.sort(key=lambda x: x[1])
 
-        # Sample a set number of games where the target move is immediately applied.
-        for r in range(ROLLOUTS):
-            rollout_state = board.next_state(state, move)
-
-            # Only play to the specified depth.
-            for i in range(MAX_DEPTH):
-                if board.is_ended(rollout_state):
-                    break
-
-                rollout_move = heuristic(rollout_state, board, me)
-
-                if not rollout_move:
-                    continue
-
-                rollout_state = board.next_state(rollout_state, rollout_move)
-            total_score += outcome(board.owned_boxes(rollout_state),
-                                   board.points_values(rollout_state))
-
-
-        expectation = float(total_score) / ROLLOUTS
-
-        # If the current move has a better average score, replace best_move and best_expectation
-        if expectation > best_expectation:
-            best_expectation = expectation
-            best_move = move
-
+    best_move, best_expectation = expectations[-1][0], expectations[-1][1]
     #print("Vaniilla bot picking %s with expected score %f" % (str(best_move), best_expectation))
     return best_move, best_expectation
 
@@ -292,6 +358,7 @@ def backpropagate(added_node: MCTSNode, expectation):
 
 def think(board, state):
     global THIS_IDENTITIY
+    global OTHER_IDENTITIY
     """ Performs MCTS by sampling games and calling the appropriate functions to construct the game tree.
 
     Args:
@@ -304,38 +371,68 @@ def think(board, state):
     identity_of_bot = board.current_player(state)
     if THIS_IDENTITIY == 0:
         THIS_IDENTITIY = identity_of_bot
-    print("{} is the heuristic bot".format(THIS_IDENTITIY))
+
+
+    if THIS_IDENTITIY == 1: OTHER_IDENTITIY = 2
+    elif THIS_IDENTITIY == 2: OTHER_IDENTITIY = 1
+
+    if DEBUG: print("{} is the parralel bot".format(THIS_IDENTITIY))
 
     root_node = MCTSNode(parent=None, parent_action=None, action_list=board.legal_actions(state))
 
     best_move = (0,0,0,0);
     best_expectation = -inf;
-    best_move_node = None
-    for step in range(num_nodes):
-        # Copy the game for sampling a playthrough
-        sampled_game = state
-        # Start at root
-        node = root_node
 
-        # Do MCTS - This is all you!
-        leaf_node = traverse_nodes(node, sampled_game, identity_of_bot)
-        added_node = expand_leaf(leaf_node, sampled_game, board)
+    if not TIME_CONSTRAINT:
+        #Using the steps (num nodes)
+        for step in range(num_nodes):
+            # Copy the game for sampling a playthrough
+            sampled_game = state
+            # Start at root
+            node = root_node
 
-        # Failsafe in case added node has no possible plays
-        while not added_node:
-            print("Failsafe activated.")
+            # Do MCTS - This is all you!
             leaf_node = traverse_nodes(node, sampled_game, identity_of_bot)
             added_node = expand_leaf(leaf_node, sampled_game, board)
 
-        active_move, active_expectation = rollout(added_node, sampled_game, board)
-        backpropagate(added_node, active_expectation)
+            # Failsafe in case added node has no possible plays
+            while not added_node:
+                leaf_node = traverse_nodes(node, sampled_game, identity_of_bot)
+                added_node = expand_leaf(leaf_node, sampled_game, board)
 
-        if active_expectation > best_expectation:
-            best_move_node = added_node
-            best_move = active_move
-            best_expectation = active_expectation
+            active_move, active_expectation = rollout(added_node, sampled_game, board)
+            backpropagate(added_node, active_expectation)
 
-    print("#####################Printing best move for heruistic:" + str(best_move) + "with the expectation: " + str(best_expectation))
+            if active_expectation > best_expectation:
+                best_move = active_move
+                best_expectation = active_expectation
+    else:
+        # Using the timer!
+        start = time.time()
+        while time.time() - start < max_time:
+            # Copy the game for sampling a playthrough
+            sampled_game = state
+            # Start at root
+            node = root_node
+
+            # Do MCTS - This is all you!
+            leaf_node = traverse_nodes(node, sampled_game, identity_of_bot)
+            added_node = expand_leaf(leaf_node, sampled_game, board)
+
+            # Failsafe in case added node has no possible plays
+            while not added_node:
+                leaf_node = traverse_nodes(node, sampled_game, identity_of_bot)
+                added_node = expand_leaf(leaf_node, sampled_game, board)
+
+            active_move, active_expectation = rollout(added_node, sampled_game, board)
+            backpropagate(added_node, active_expectation)
+
+            if active_expectation > best_expectation:
+                best_move = active_move
+                best_expectation = active_expectation
+
+
+    print("Paralel Heuristic:" + str(THIS_IDENTITIY) + " |Printing best move for paralel:" + str(best_move) + " with the expectation: " + str(best_expectation))
     #best_move = find_root_move(best_move, best_move_node)
     return best_move
 
