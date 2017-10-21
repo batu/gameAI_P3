@@ -216,7 +216,9 @@ def rollout(node:MCTSNode, state, board):
             for i in range(MAX_DEPTH):
                 if board.is_ended(rollout_state):
                     break
+
                 rollout_move = choice(board.legal_actions(rollout_state))
+
                 rollout_state = board.next_state(rollout_state, rollout_move)
 
             total_score += outcome(board.owned_boxes(rollout_state),
