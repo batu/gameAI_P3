@@ -1,0 +1,45 @@
+Analysis of Monte Carlo Tree Search applied to Ultimate Tic-Tac-Toe
+For the game Ultimate Tic-Tac-Toe, we tested the mcts_vanilla bot (Player 1) against 
+another version of itself (Player 2), the difference being the number of nodes 
+in order to see how the winrates of the "players" change as the number of nodes of Player 2 change.
+We gathered data by simulating 100 rounds of the game for each different number of nodes of Player 2.
+
+As Player 2's number of nodes increases, its winrate gets closer to player 1's winrate.
+At 100 vs 20  nodes, there is a 22% difference in winrate.
+At 100 vs 40  nodes, there is a 04% difference in winrate.
+At 100 vs 60  nodes, there is a 13% difference in winrate.
+At 100 vs 80  nodes, there is a 18% difference in winrate.
+At 100 vs 100 nodes, there is a 08% difference in winrate.
+At 100 vs 120 nodes, there is a 08% difference in winrate.
+
+Player 1's winrate is higher in all the performed simulations, even when Player 2 has 120 nodes.
+Perhaps Player 1 has an advantage because it plays the first move. Even when both players had
+the same amount of nodes, Player 1 had an 8% higher winrate. I will do more tests with the 
+players swapped to test this theory!
+
+Player 1 = mcts_vanilla with 100 nodes
+Player 2 = mcts_ex1, same as vanilla but with a varying number of nodes
+rounds   = 100
+
+Player  1   2   Draw
+
+Nodes   100 0   
+Wins    100 0   0
+
+Nodes   100 20
+Wins    43  21  36
+
+Nodes   100 40
+Wins    39  35  26
+
+Nodes   100 60
+Wins    36  23  41
+
+Nodes   100 80
+Wins    44  26  30
+
+Nodes   100 100
+Wins    36  28  36
+
+Nodes   100 120
+Wins    38  30  32
