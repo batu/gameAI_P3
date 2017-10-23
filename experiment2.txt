@@ -12,9 +12,19 @@ We simulate the next move,
 if the move results in a  win state for us we reward that move
 if the move results in a win state for the opponent we punish that move.
 
+Player 1 = mcts_modified
+Player 2 = mcts_vanilla
+rounds = 50
+
+Player  1   2   draw
+Wins    5   28  17
 
 Our results show that vanilla is doing better than heuristics implementation.
 
-This show that the heuristics, in its current implementation, is not beneficial. We made some assumptions when picking these heuristics to implement, but while playin we realized that in certain cases moving to win a box might not be the optimal move. We believe forcing our bot to do always do this heuristic we are losing out on some potential moves.
+This show that the heuristics, in its current implementation, is not beneficial. 
+We made some assumptions when picking these heuristics to implement, 
+but while playing we realized that in certain cases moving to win a box might not be the optimal move. 
+We believe forcing our bot to always do this heuristic we are losing out on some potential moves.
+It is not surprising that our heuristics were not beneficial because we do not consider ourselves
+experts on the game of Ultimate Tic-Tac-Toe and are not sure what the optimal strategies are.
 
-We also realized that the return list 
