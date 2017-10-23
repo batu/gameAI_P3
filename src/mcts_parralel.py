@@ -8,15 +8,15 @@ import time, copy
 DEBUG = False
 NUM_THREADS = 16
 
-
+MODIFIED = True
 TIME_CONSTRAINT = True
 #in seconds
-max_time = 0.1
+max_time = 0.2
 
-num_nodes = 10
+num_nodes = 5
 explore_faction = 2
 
-ROLLOUTS = 5
+ROLLOUTS = 16
 MAX_DEPTH = 5
 
 THIS_IDENTITIY = 0
@@ -137,6 +137,11 @@ def traverse_nodes(node: MCTSNode, state, identity):
             child.visits += 1
 
             UCT_value = UCT(active_node, child, identity)
+
+            #The child is really bad if there are no possible actions on it
+            if len(child.untried_actions) == 0:
+                UCT_value = -inf
+
             UCT_to_nodes[child] = UCT_value
 
         #The node with the max value
@@ -148,6 +153,7 @@ def traverse_nodes(node: MCTSNode, state, identity):
         if DEBUG: print(active_node)
     return active_node
 
+    # Bad hint.
     # Hint: return leaf_node
 
 #adding a new MCTSNode to the tree
@@ -197,7 +203,10 @@ def rollout_worker(ROLLOUTS, MAX_DEPTH, board, state, me, move):
             if board.is_ended(rollout_state):
                 break
 
-            rollout_move = heuristic(rollout_state, board, me)
+            if MODIFIED:
+                rollout_move = heuristic(rollout_state, board, me)
+            else:
+                rollout_move = choice(board.legal_actions(rollout_state))
 
             if not rollout_move:
                 continue
@@ -214,78 +223,81 @@ def rollout_worker(ROLLOUTS, MAX_DEPTH, board, state, me, move):
 
 # Returns choice a choice
 def heuristic(state, board, identitity):
-        legal_actions = board.legal_actions(state)
+    legal_actions = board.legal_actions(state)
 
-        # Seperate legal action from the list that it is going to loop
-        # on as it sometimes creates weird behavior to modify the list you are
-        # going through, even though it SHOULD be fine in this case.
+    # Seperate legal action from the list that it is going to loop
+    # on as it sometimes creates weird behavior to modify the list you are
+    # going through, even though it SHOULD be fine in this case.
 
-        legal_actions_loop = copy.copy(legal_actions)
-        #iterate through all possible actions in the state
-        for action in legal_actions_loop:
-            next_state = board.next_state(state, action)
+    legal_actions_loop = copy.copy(legal_actions)
+    #iterate through all possible actions in the state
+    for action in legal_actions_loop:
+        next_state = board.next_state(state, action)
 
 
-            ### HEURISTIC ONE - CHECK THE INCREASE IN OWNED BOXES ###
-            current_boxes = board.owned_boxes(state)
-            current_box_owner_count = 0
-            current_box_enemy_count = 0
-            for value in current_boxes.values():
-                if value == THIS_IDENTITIY:
-                    current_box_owner_count += 1
-                if value == OTHER_IDENTITIY:
-                    current_box_enemy_count += 1
+        ### HEURISTIC ONE - CHECK THE INCREASE IN OWNED BOXES ###
+        current_boxes = board.owned_boxes(state)
+        current_box_owner_count = 0
+        current_box_enemy_count = 0
+        for value in current_boxes.values():
+            if value == THIS_IDENTITIY:
+                current_box_owner_count += 1
+            if value == OTHER_IDENTITIY:
+                current_box_enemy_count += 1
 
-            next_boxes = board.owned_boxes(next_state)
-            next_box_owner_count = 0
-            next_box_enemy_count = 0
-            for value in next_boxes.values():
-                if value == THIS_IDENTITIY:
-                    next_box_owner_count += 1
-                if value == OTHER_IDENTITIY:
-                    next_box_enemy_count += 1
+        next_boxes = board.owned_boxes(next_state)
+        next_box_owner_count = 0
+        next_box_enemy_count = 0
+        for value in next_boxes.values():
+            if value == THIS_IDENTITIY:
+                next_box_owner_count += 1
+            if value == OTHER_IDENTITIY:
+                next_box_enemy_count += 1
 
-            # if an action results in an main box increase, do that
-            if next_box_owner_count > current_box_owner_count:
-                return action
+        # if an action results in an main box increase, do that
+        if next_box_owner_count > current_box_owner_count:
+            return action
 
-            # if an action results in an increase in enemy box count
-            # remove that from the possible list of action
-            if next_box_enemy_count > current_box_enemy_count:
-                if action in legal_actions: legal_actions.remove(action)
+        # if an action results in an increase in enemy box count
+        # remove that from the possible list of action
+        if next_box_enemy_count > current_box_enemy_count:
+            if action in legal_actions: legal_actions.remove(action)
 
-            ### -------------------------------------------------------- ###
+        ### -------------------------------------------------------- ###
 
-            ### HEURISTIC 2 - CHECK IF THE MOVES GIVES YOU THE WIN/LOSS ###
-            final_dict = board.points_values(next_state)
-            #Sometimes final_dict returns None. This behavior is outside the documentation
-            #and I couldnt figure out when it is the case, so the next line is a
-            #safe guard against that
-            if final_dict:
-                #For the player
-                if identitity == THIS_IDENTITIY:
-                    # if this move brings us to victory return it
-                    if final_dict[THIS_IDENTITIY] == 1:
-                        return action;
 
-                    # if this move brings us defeat remove it from the possible actions
-                    if final_dict[THIS_IDENTITIY] == -1:
-                        if action in legal_actions: legal_actions.remove(action)
-                #For the opponent
-                else:
-                    # If this move brings victory to the opponent remove it from possible actions
-                    if final_dict[OTHER_IDENTITIY] == 1:
-                        if action in legal_actions: legal_actions.remove(action)
-                    # If this move brings defeat to the opponent return it
-                    if final_dict[OTHER_IDENTITIY] == -1:
-                        return action;
-            ### ----------------------------------------------------------------- ###
-        try:
-            #if a terminal state isnt found just return a random legal action.
-            return choice(legal_actions)
-        except IndexError:
-            print("Returned none from heuristic.")
-            return None
+        ### HEURISTIC 2 - CHECK IF THE MOVES GIVES YOU THE WIN/LOSS ###
+        final_dict = board.points_values(next_state)
+        #Sometimes final_dict returns None. This behavior is outside the documentation
+        #and I couldnt figure out when it is the case, so the next line is a
+        #safe guard against that
+        if final_dict:
+            #For the player
+            if identitity == THIS_IDENTITIY:
+                # if this move brings us to victory return it
+                if final_dict[THIS_IDENTITIY] == 1:
+                    return action;
+
+                # if this move brings us defeat remove it from the possible actions
+                if final_dict[THIS_IDENTITIY] == -1:
+                    if action in legal_actions: legal_actions.remove(action)
+            #For the opponent
+            """
+            else:
+                # If this move brings victory to the opponent remove it from possible actions
+                if final_dict[OTHER_IDENTITIY] == 1:
+                    if action in legal_actions: legal_actions.remove(action)
+                # If this move brings defeat to the opponent return it
+                if final_dict[OTHER_IDENTITIY] == -1:
+                    return action;
+            """
+        ### ----------------------------------------------------------------- ###
+
+    try:
+        #if a terminal state isnt found just return a random legal action.
+        return choice(legal_actions)
+    except IndexError:
+        return None
 
 def outcome(owned_boxes, game_points, me):
     if game_points is not None:
@@ -305,8 +317,6 @@ def rollout(node:MCTSNode, state, board):
 
     """
     state = ravel_states(board, state, node)
-    ROLLOUTS = 10
-    MAX_DEPTH = 5
     moves = board.legal_actions(state)
 
     #Safe guard into not having enough plays.
@@ -383,6 +393,7 @@ def think(board, state):
     best_move = (0,0,0,0);
     best_expectation = -inf;
 
+    explored_counter = 0
     if not TIME_CONSTRAINT:
         #Using the steps (num nodes)
         for step in range(num_nodes):
@@ -410,6 +421,7 @@ def think(board, state):
         # Using the timer!
         start = time.time()
         while time.time() - start < max_time:
+            explored_counter += 1
             # Copy the game for sampling a playthrough
             sampled_game = state
             # Start at root
@@ -432,7 +444,9 @@ def think(board, state):
                 best_expectation = active_expectation
 
 
-    print("Paralel Heuristic:" + str(THIS_IDENTITIY) + " |Printing best move for paralel:" + str(best_move) + " with the expectation: " + str(best_expectation))
+    if not TIME_CONSTRAINT:print("Paralel Heuristic:" + str(THIS_IDENTITIY) + " |Printing best move for paralel:" + str(best_move) + " with the expectation: " + str(best_expectation))
+    #print("Paralel Heuristic:" + str(THIS_IDENTITIY) + " |Printing best move for paralel:" + str(best_move) + " with the expectation: " + str(best_expectation))
+    if TIME_CONSTRAINT: print("Paralel: {} with {} explored nodes.".format(THIS_IDENTITIY, explored_counter))
     #best_move = find_root_move(best_move, best_move_node)
     return best_move
 

@@ -7,10 +7,11 @@ DEBUG = False
 
 TIME_CONSTRAINT = False
 #in seconds
-max_time = 1
+max_time = 0.2
 
-num_nodes = 5
-explore_faction = 5
+num_nodes = 50
+explore_faction = 2
+
 ROLLOUTS = 5
 MAX_DEPTH = 5
 
@@ -289,6 +290,7 @@ def think(board, state):
     best_move = (0,0,0,0);
     best_expectation = -inf;
 
+    explored_counter = 0
     if not TIME_CONSTRAINT:
         for step in range(num_nodes):
             # Copy the game for sampling a playthrough
@@ -314,6 +316,7 @@ def think(board, state):
     else:
         start = time.time()
         while time.time() - start < max_time:
+            explored_counter += 1
             # Copy the game for sampling a playthrough
             sampled_game = state
             # Start at root
@@ -336,7 +339,8 @@ def think(board, state):
                 best_move = active_move
                 best_expectation = active_expectation
 
-    #print("Vanilla:" + str(THIS_IDENTITIY)+ " |Printing best move:" + str(best_move) + "with the expectation: " + str(best_expectation))
+    print("Vanilla:" + str(THIS_IDENTITIY)+ " |Printing best move:" + str(best_move) + "with the expectation: " + str(best_expectation))
     #best_move = find_root_move(best_move, best_move_node)
+    #print("Vanilla: {} with {} explored nodes.".format(THIS_IDENTITIY, explored_counter))
     return best_move
 

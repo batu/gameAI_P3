@@ -1,0 +1,39 @@
+In this experiment we ran Vanilla vs Vanilla_Parralel under the time constraints.
+
+The following were our parameters:
+
+Rollout = 16
+Max Depth = 5
+Threads = 16
+
+The following were our results:
+Time		0.2	0.4	0.6	0.8	1
+Paralel_wins	12	10	19	23	25
+Vanilla_wins	9	7	16	23	23
+Draw		79	83	65	54	53
+
+This goes to show that parraleliszation offers no statistically significant advantage in the current implementations, when it comes to playing Vanilla vs Vanilla with Parralelization.
+
+One thing to note however the # of draws gets reduced significantly as more time is introduced into the system.
+
+(I should have recorded statistics about # of treenodes but I forgot. Due to time constraints I cant rerun this experiment as it takes over an hour. The best we can do is to look at how much parralelization speeds things and evaluate the results using that information)
+
+Time it takes for 10 matches of Vanilla vs Vanilla:
+145.5 seconds
+
+Time it takes for 10 matches of Vanilla_Paralel vs Vanilla_Paralel:
+138.5 seconds
+
+These results mirror our experiment 4 results, as in Vanilla implementation parralelization doesnt give a big increase in speed.
+
+This, however, changes when we look at Heruistic implementation
+
+Time it takes for a match of Heruistic vs Heuristic:
+105.8 seconds
+
+Time it takes for a match of Heruistic_Parralel vs Heuristic_Parralel:
+56.2 seconds
+
+Now in Heuristic matches we can see that parralelization has significant speed up factor, almost a 100%. Which means paralel herusitc can do more comptuation in given time. And also this shows that our heuristic is really really slow.
+
+This implies that running Heuristic Parralel vs Heuristic under time contraints could have given us different results than Parralel_vanilla vs Vanilla. Unfortunately due to the time constraints we could finish this set of experiments

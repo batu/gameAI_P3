@@ -7,11 +7,12 @@ DEBUG = False
 
 TIME_CONSTRAINT = False
 #in seconds
-max_time = 0.1
+max_time = 0.2
 
-num_nodes = 5
+num_nodes = 10
 explore_faction = 2
-ROLLOUTS = 5
+
+ROLLOUTS = 16
 MAX_DEPTH = 5
 
 THIS_IDENTITIY = 0
@@ -23,11 +24,12 @@ OTHER_IDENTITIY = 0
 #board.is_ended(state) returns True if the game has ended in state and False otherwise.
 #board.current_player(state)  returns the index of the current player in state.
 #board.points_values(state)  returns a dictionary of the score for each player (eg {1:-1,2:1} for a second-player win).  Will return {1: 0, 2: 0} if the game is not ended.
-#board.owned_boxes(state)  returns a dict with (Row,Column) keys; values indicate for each box whether player 1, 2, or 0 (neither) owns that box
+#board.owned_boxes(state)  returns a dict with (Row,Column) keys; values indicate for each box whether player 1, 2, or 0 (neither) owns that box(1,1)
 #board.display(state)  returns a string representation of the board state.
 #board.display_action(action)  returns a string representation of the game action.
 
-#Never used
+#This function is used to figure out what move to play now given to get a future move, given that desired
+# future move and state
 def find_root_move(best_move, node: MCTSNode):
     parent_move = best_move
     while node.parent:
@@ -193,6 +195,7 @@ def rollout(node:MCTSNode, state, board):
     """
     # Returns choice and corresponding heuristic weight
     def heuristic(state, board, identitity):
+
         legal_actions = board.legal_actions(state)
 
         # Seperate legal action from the list that it is going to loop
@@ -203,6 +206,7 @@ def rollout(node:MCTSNode, state, board):
         #iterate through all possible actions in the state
         for action in legal_actions_loop:
             next_state = board.next_state(state, action)
+
 
             ### HEURISTIC ONE - CHECK THE INCREASE IN OWNED BOXES ###
             current_boxes = board.owned_boxes(state)
@@ -234,6 +238,7 @@ def rollout(node:MCTSNode, state, board):
 
             ### -------------------------------------------------------- ###
 
+
             ### HEURISTIC 2 - CHECK IF THE MOVES GIVES YOU THE WIN/LOSS ###
             final_dict = board.points_values(next_state)
             #Sometimes final_dict returns None. This behavior is outside the documentation
@@ -250,6 +255,7 @@ def rollout(node:MCTSNode, state, board):
                     if final_dict[THIS_IDENTITIY] == -1:
                         if action in legal_actions: legal_actions.remove(action)
                 #For the opponent
+                """
                 else:
                     # If this move brings victory to the opponent remove it from possible actions
                     if final_dict[OTHER_IDENTITIY] == 1:
@@ -257,7 +263,9 @@ def rollout(node:MCTSNode, state, board):
                     # If this move brings defeat to the opponent return it
                     if final_dict[OTHER_IDENTITIY] == -1:
                         return action;
+                """
             ### ----------------------------------------------------------------- ###
+
         try:
             #if a terminal state isnt found just return a random legal action.
             return choice(legal_actions)
@@ -367,7 +375,7 @@ def think(board, state):
 
     best_move = (0,0,0,0);
     best_expectation = -inf;
-
+    explored_counter = 0
     if not TIME_CONSTRAINT:
         for step in range(num_nodes):
             # Copy the game for sampling a playthrough
@@ -393,6 +401,7 @@ def think(board, state):
     else:
         start = time.time()
         while time.time() - start < max_time:
+            explored_counter += 1
             # Copy the game for sampling a playthrough
             sampled_game = state
             # Start at root
@@ -414,7 +423,11 @@ def think(board, state):
                 best_move = active_move
                 best_expectation = active_expectation
 
-    #print("Heuristic:" + str(THIS_IDENTITIY) + " |Printing best move for heruistic:" + str(best_move) + " with the expectation: " + str(best_expectation))
+    if not TIME_CONSTRAINT: print("Heuristic:" + str(THIS_IDENTITIY) + " |Printing best move for heruistic:" + str(best_move) + " with the expectation: " + str(best_expectation))
+    #print("With {} explored nodes.".format(explored_counter))
+    if TIME_CONSTRAINT: print("Heuristic: {} with {} explored nodes.".format(THIS_IDENTITIY, explored_counter))
+
+
     #best_move = find_root_move(best_move, best_move_node)
     return best_move
 

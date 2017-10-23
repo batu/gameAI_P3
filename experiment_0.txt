@@ -1,0 +1,2 @@
+Our vanilla wins against random_bot in allmost all cases.
+Our vanilla wins against rollout_bot 90% of the time.

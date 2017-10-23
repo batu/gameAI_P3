@@ -1,0 +1,20 @@
+Modified vs Vanilla.
+
+We have implemented 2 different heuristics.
+Heruistic #1:
+We look at the number of owned boxes for both the player and the opponent.
+We simulate the move
+If the number of owned boxes increases for the player we reward that move
+If the number of owned boxes increases for the opponent we punish that move
+
+Heruistic #2:
+We simulate the next move, 
+if the move results in a  win state for us we reward that move
+if the move results in a win state for the opponent we punish that move.
+
+
+Our results show that vanilla is doing better than heuristics implementation.
+
+This show that the heuristics, in its current implementation, is not beneficial. We made some assumptions when picking these heuristics to implement, but while playin we realized that in certain cases moving to win a box might not be the optimal move. We believe forcing our bot to do always do this heuristic we are losing out on some potential moves.
+
+We also realized that the return list 
