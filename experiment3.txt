@@ -1,0 +1,56 @@
+﻿Analysis of Monte Carlo Tree Search applied to Ultimate Tic-Tac-Toe
+
+With the time budget of 1 second, the modified version had an average tree size of 681 over 100 games.
+mcts_ex3 is the same as mcts_vanilla but with a time constraint that infulences the amount of nodes it will have in its tree.
+
+Player 1 = mcts_vanilla
+Player 2 = mcts_ex3
+Average Tree Size = ATS
+rounds = 100
+
+Player  1   2   draw
+Wins    32  40  28
+ATS     100 681 
+
+The mcts_ex3 version as player 2 had an 08% higher winrate even with the disadvantage of going second (as demonstrated in experiment 1).
+mcts_ex3 was able to get a higher winrate because it had many more nodes on average than mcts_vanilla's 100 nodes.
+
+
+The following simulations were run on 25 rounds each with our mcts_modified.
+Player 1 = mcts_vanilla
+Player 2 = mcts_modified
+Average Tree Size = ATS
+time = 1 second
+
+Player  1   2   draw
+Wins    0  19   6
+ATS     197 100
+
+With a 1 second time budget, mcts_ex3 had a larger average tree size, at 197 than vanilla's 100 nodes.
+This resulted in it winning A LOT. It was actually unbeatable for 25 rounds.
+
+Player 1 = mcts_vanilla
+Player 2 = mcts_modified
+Average Tree Size = ATS
+
+time = 0.5 second
+Player  1   2   draw
+Wins    21  2   2
+ATS     129 100
+
+With a 0.5 second time budget, the modified version had a larger average tree size, at 129 than vanilla's 100 nodes.
+During each game, the tree size was between 1 and around 10 on average, until the final few moves where it rose to 100,200 or rarely, 3000.
+This inflated the tree size making it appear larger than it really was for most of the game.
+It did this because it had very few actions to consider at the end of the game and could use it's time to create many nodes.
+
+
+Player 1 = mcts_vanilla
+Player 2 = mcts_modified
+Average Tree Size = ATS
+
+time = 0.75 second
+Player  1   2   draw
+Wins    3   15   7
+ATS     162 100
+
+At 0.75 seconds, mcts_modified was able to again build up a large enough tree to beat mcts_vanilla fairly consistently.
