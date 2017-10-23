@@ -4,24 +4,11 @@ another version of itself (Player 2), the difference being the number of nodes
 in order to see how the winrates of the "players" change as the number of nodes of Player 2 change.
 We gathered data by simulating 100 rounds of the game for each different number of nodes of Player 2.
 
-As Player 2's number of nodes increases, its winrate gets closer to player 1's winrate.
-At 100 vs 20  nodes, there is a 22% difference in winrate.
-At 100 vs 40  nodes, there is a 04% difference in winrate.
-At 100 vs 60  nodes, there is a 13% difference in winrate.
-At 100 vs 80  nodes, there is a 18% difference in winrate.
-At 100 vs 100 nodes, there is a 08% difference in winrate.
-At 100 vs 120 nodes, there is a 08% difference in winrate.
-
-Player 1's winrate is higher in all the performed simulations, even when Player 2 has 120 nodes.
-Perhaps Player 1 has an advantage because it plays the first move. Even when both players had
-the same amount of nodes, Player 1 had an 8% higher winrate. I will do more tests with the 
-players swapped to test this theory!
-
 Player 1 = mcts_vanilla with 100 nodes
 Player 2 = mcts_ex1, same as vanilla but with a varying number of nodes
 rounds   = 100
 
-Player  1   2   Draw
+Player  1   2   draw
 
 Nodes   100 0   
 Wins    100 0   0
@@ -43,3 +30,57 @@ Wins    36  28  36
 
 Nodes   100 120
 Wins    38  30  32
+
+As Player 2's number of nodes increases, its winrate gets closer to player 1's winrate, but does not overtake it.
+At 100 vs 20  nodes, there is a 22% difference in winrate in vanilla's favor.
+At 100 vs 40  nodes, there is a 04% difference in winrate in vanilla's favor.
+At 100 vs 60  nodes, there is a 13% difference in winrate in vanilla's favor.
+At 100 vs 80  nodes, there is a 18% difference in winrate in vanilla's favor.
+At 100 vs 100 nodes, there is a 08% difference in winrate in vanilla's favor.
+At 100 vs 120 nodes, there is a 08% difference in winrate in vanilla's favor.
+
+Player 1's winrate is higher in all of the above simulations, even when Player 2 has 120 nodes.
+Perhaps Player 1 has an advantage because it plays the first move. Even when both players had
+the same amount of nodes, Player 1 had an 8% higher winrate. That theory is tested below.
+
+
+For the following data,
+Player 1 = mcts_ex1
+Player 2 = mcts_vanilla
+
+Player	1   2   draw
+
+Nodes   0   100
+Wins    0   100 0
+
+Nodes   20  100
+Wins    19  35  46
+
+Nodes   40  100
+Wins    33  30  37
+
+Nodes   60  100
+Wins    34  33  33
+
+Nodes	80  100
+Wins    41  34  25
+
+Nodes   100 100 
+Wins    35  33  32
+
+Nodes   120 100
+Wins    39  24  37
+
+At 20  vs 100  nodes, there is a 16% difference in winrate in vanilla's favor.
+At 40  vs 100  nodes, there is a 03% difference in winrate in ex1's favor.
+At 60  vs 100  nodes, there is a 01% difference in winrate in ex1's favor.
+At 80  vs 100  nodes, there is a 07% difference in winrate in ex1's favor.
+At 100 vs 100  nodes, there is a 02% difference in winrate in ex1's favor.
+At 120 vs 100  nodes, there is a 15% difference in winrate in ex1's favor.
+
+After these simulations, mcts_ex1 as Player 1 generally had a higher winrate than mcts_vanilla as Player 2. 
+The exceptions are when Player 1 had 0 nodes and when it had 20 nodes, Player 2 had a higher winrate. 
+Player 2 won more in those cases because it had too many more nodes than Player 1 for Player 1 to compete. 
+In conclusion, for the values of nodes tested, (0,20,40,60,80,100,120), higher winrate was more 
+dependent on if the bot gets to go first. The winrates were closest when mcts_ex1 was going first 
+with 60 nodes.
