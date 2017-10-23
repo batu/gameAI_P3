@@ -2,6 +2,8 @@ import sys
 from timeit import default_timer as time
 import p3_t3
 import mcts_vanilla
+import mcts_ex1
+import mcts_ex3
 import mcts_modified
 import random_bot
 import rollout_bot
@@ -11,6 +13,8 @@ players = dict(
     random_bot=random_bot.think,
     rollout_bot=rollout_bot.think,
     mcts_vanilla=mcts_vanilla.think,
+    mcts_ex1=mcts_ex1.think,
+    mcts_ex3=mcts_ex3.think,
     mcts_modified=mcts_modified.think,
     mcts_parralel=mcts_parralel.think
 )
@@ -34,7 +38,7 @@ if p2 not in players:
 player1 = players[p1]
 player2 = players[p2]
 
-rounds = 20
+rounds = 50
 wins = {'draw':0, 1:0, 2:0}
 
 
